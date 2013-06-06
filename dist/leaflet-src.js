@@ -5396,6 +5396,11 @@ L.Circle.include(!L.Path.CANVAS ? {} : {
 
 L.GeoJSON = L.FeatureGroup.extend({
 
+	/* Options
+	pointToLayer: function called as func(geojson, latlng, feature) to create a new layer
+	              for a point.  (default: creates an L.Marker)
+	*/
+
 	initialize: function (geojson, options) {
 		L.setOptions(this, options);
 
@@ -5464,21 +5469,23 @@ L.GeoJSON = L.FeatureGroup.extend({
 });
 
 L.extend(L.GeoJSON, {
-	geometryToLayer: function (geojson, pointToLayer) {
+	// feature: the top most feature/geojson that led to creating the geometry layer(s)
+	geometryToLayer: function (geojson, pointToLayer, feature) {
 		var geometry = geojson.type === 'Feature' ? geojson.geometry : geojson,
 		    coords = geometry.coordinates,
 		    layers = [],
 		    latlng, latlngs, i, len, layer;
+		feature = feature || geojson;
 
 		switch (geometry.type) {
 		case 'Point':
 			latlng = this.coordsToLatLng(coords);
-			return pointToLayer ? pointToLayer(geojson, latlng) : new L.Marker(latlng);
+			return pointToLayer ? pointToLayer(geojson, latlng, feature) : new L.Marker(latlng);
 
 		case 'MultiPoint':
 			for (i = 0, len = coords.length; i < len; i++) {
 				latlng = this.coordsToLatLng(coords[i]);
-				layer = pointToLayer ? pointToLayer(geojson, latlng) : new L.Marker(latlng);
+				layer = pointToLayer ? pointToLayer(geojson, latlng, feature) : new L.Marker(latlng);
 				layers.push(layer);
 			}
 			return new L.FeatureGroup(layers);
@@ -5501,7 +5508,7 @@ L.extend(L.GeoJSON, {
 
 		case "GeometryCollection":
 			for (i = 0, len = geometry.geometries.length; i < len; i++) {
-				layer = this.geometryToLayer(geometry.geometries[i], pointToLayer);
+				layer = this.geometryToLayer(geometry.geometries[i], pointToLayer, feature);
 				layers.push(layer);
 			}
 			return new L.FeatureGroup(layers);
