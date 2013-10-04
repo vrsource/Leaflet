@@ -7,11 +7,11 @@ L.FeatureGroup = L.LayerGroup.extend({
 	includes: L.Mixin.Events,
 
 	statics: {
-		EVENTS: 'click dblclick mouseover mouseout mousemove contextmenu'
+		EVENTS: 'click dblclick mouseover mouseout mousemove contextmenu popupopen popupclose'
 	},
 
 	addLayer: function (layer) {
-		if (this._layers[L.stamp(layer)]) {
+		if (this.hasLayer(layer)) {
 			return this;
 		}
 
@@ -20,17 +20,23 @@ L.FeatureGroup = L.LayerGroup.extend({
 		L.LayerGroup.prototype.addLayer.call(this, layer);
 
 		if (this._popupContent && layer.bindPopup) {
-			layer.bindPopup(this._popupContent);
+			layer.bindPopup(this._popupContent, this._popupOptions);
 		}
 
 		return this.fire('layeradd', {layer: layer});
 	},
 
 	removeLayer: function (layer) {
+		if (!this.hasLayer(layer)) {
+			return this;
+		}
+		if (layer in this._layers) {
+			layer = this._layers[layer];
+		}
+
 		layer.off(L.FeatureGroup.EVENTS, this._propagateEvent, this);
 
 		L.LayerGroup.prototype.removeLayer.call(this, layer);
-
 
 		if (this._popupContent) {
 			this.invoke('unbindPopup');
@@ -39,9 +45,10 @@ L.FeatureGroup = L.LayerGroup.extend({
 		return this.fire('layerremove', {layer: layer});
 	},
 
-	bindPopup: function (content) {
+	bindPopup: function (content, options) {
 		this._popupContent = content;
-		return this.invoke('bindPopup', content);
+		this._popupOptions = options;
+		return this.invoke('bindPopup', content, options);
 	},
 
 	setStyle: function (style) {
@@ -67,7 +74,9 @@ L.FeatureGroup = L.LayerGroup.extend({
 	},
 
 	_propagateEvent: function (e) {
-		e.layer  = e.target;
+		if (!e.layer) {
+			e.layer = e.target;
+		}
 		e.target = this;
 
 		this.fire(e.type, e);
