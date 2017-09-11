@@ -38,8 +38,8 @@ L.Control.Layers = L.Control.extend({
 
 	onRemove: function (map) {
 		map
-		    .off('layeradd', this._onLayerChange)
-		    .off('layerremove', this._onLayerChange);
+		    .off('layeradd', this._onLayerChange, this)
+		    .off('layerremove', this._onLayerChange, this);
 	},
 
 	addBaseLayer: function (layer, name) {
@@ -69,8 +69,9 @@ L.Control.Layers = L.Control.extend({
 		container.setAttribute('aria-haspopup', true);
 
 		if (!L.Browser.touch) {
-			L.DomEvent.disableClickPropagation(container);
-			L.DomEvent.on(container, 'mousewheel', L.DomEvent.stopPropagation);
+			L.DomEvent
+				.disableClickPropagation(container)
+				.disableScrollPropagation(container);
 		} else {
 			L.DomEvent.on(container, 'click', L.DomEvent.stopPropagation);
 		}
@@ -95,6 +96,10 @@ L.Control.Layers = L.Control.extend({
 			else {
 				L.DomEvent.on(link, 'focus', this._expand, this);
 			}
+			//Work around for Firefox android issue https://github.com/Leaflet/Leaflet/issues/2033
+			L.DomEvent.on(form, 'click', function () {
+				setTimeout(L.bind(this._onInputClick, this), 0);
+			}, this);
 
 			this._map.on('click', this._collapse, this);
 			// TODO keyboard accessibility
@@ -229,6 +234,8 @@ L.Control.Layers = L.Control.extend({
 		}
 
 		this._handlingClick = false;
+
+		this._refocusOnMap();
 	},
 
 	_expand: function () {

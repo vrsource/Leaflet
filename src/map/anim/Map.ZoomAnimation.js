@@ -24,8 +24,8 @@ if (L.DomUtil.TRANSITION) {
 
 L.Map.include(!L.DomUtil.TRANSITION ? {} : {
 
-	_catchTransitionEnd: function () {
-		if (this._animatingZoom) {
+	_catchTransitionEnd: function (e) {
+		if (this._animatingZoom && e.propertyName.indexOf('transform') >= 0) {
 			this._onZoomTransitionEnd();
 		}
 	},
@@ -61,9 +61,11 @@ L.Map.include(!L.DomUtil.TRANSITION ? {} : {
 		return true;
 	},
 
-	_animateZoom: function (center, zoom, origin, scale, delta, backwards) {
+	_animateZoom: function (center, zoom, origin, scale, delta, backwards, forTouchZoom) {
 
-		this._animatingZoom = true;
+		if (!forTouchZoom) {
+			this._animatingZoom = true;
+		}
 
 		// put transform transition on all layers with leaflet-zoom-animated class
 		L.DomUtil.addClass(this._mapPane, 'leaflet-zoom-anim');
@@ -77,17 +79,22 @@ L.Map.include(!L.DomUtil.TRANSITION ? {} : {
 			L.Draggable._disabled = true;
 		}
 
-		this.fire('zoomanim', {
-			center: center,
-			zoom: zoom,
-			origin: origin,
-			scale: scale,
-			delta: delta,
-			backwards: backwards
-		});
+		L.Util.requestAnimFrame(function () {
+			this.fire('zoomanim', {
+				center: center,
+				zoom: zoom,
+				origin: origin,
+				scale: scale,
+				delta: delta,
+				backwards: backwards
+			});
+			// horrible hack to work around a Chrome bug https://github.com/Leaflet/Leaflet/issues/3689
+			setTimeout(L.bind(this._onZoomTransitionEnd, this), 250);
+		}, this);
 	},
 
 	_onZoomTransitionEnd: function () {
+		if (!this._animatingZoom) { return; }
 
 		this._animatingZoom = false;
 
